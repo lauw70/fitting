@@ -1,25 +1,24 @@
 import itertools
 import numpy as np
-from mpl_toolkits.mplot3d import Axes3D
 import matplotlib.pyplot as plt
+from scipy.interpolate import interp1d
 from matplotlib import cm
 
 
 def main():
     # Generate Data...
-    numdata = 500
+    numdata = 10
     data = getData()
     x = data[:,0]
     y = data[:,1]
     z = data[:,2]
-    #y = [item[1] for item in data]
-    #z = [item[2] for item in data]
-    #x = np.random.random(numdata)
-    #y = np.random.random(numdata)
-    #z = x**2 + y**2 + 3*x**3 + y + np.random.random(numdata)
+
+    x = np.random.random(numdata)
+    y = np.random.random(numdata)
+    z = np.random.uniform(low=-100, high=0, size=(numdata,))
 
     # Fit a 3rd order, 2d polynomial
-    m = polyfit2d(x,y,z, order=3)
+    m = polyfit2d(x,y,z)
 
     # Evaluate it on a grid...
     nx, ny = 50, 50
@@ -27,22 +26,40 @@ def main():
                          np.linspace(y.min(), y.max(), ny))
     zz = polyval2d(xx, yy, m)
 
-    # Plot surface
-    fig = plt.figure()
-    ax = fig.add_subplot(121)
-    # ax.contourf(xx, yy, zz, 100)
-    ax.scatter(xx, yy, c=zz)
-    ax.scatter(x, y, c=z)
+    # plt.contour(xx, yy, zz, 50, extent=(x.min(), x.max(), y.min(), y.max()), alpha=0.6)
+    # plt.imshow(zz, extent=(x.min(), x.max(), y.min(), y.max()), origin='lower', alpha=0.5)
+    plt.scatter(x, y, c=z)
 
+    coords = combine(xx, yy, zz)
+    x_coords = [item[0] for item in coords]
+    y_coords = [item[1] for item in coords]
+    z_coords = [item[2] for item in coords]
+    plt.scatter(x_coords, y_coords, c=flatten(z_coords), alpha=0.2, cmap='Greys')
 
-    # Plot
-    fig = plt.figure()
-    ax2 = fig.add_subplot(122)
-    ax2.imshow(zz, extent=(x.min(), y.max(), x.max(), y.min()))
-    ax2.scatter(x, y, c=z)
     plt.show()
+    print('done')
+
+def flatten(x):
+    m = interp1d([min(x), max(x)], [1, 0])
+    for i, v in enumerate(x):
+        x[i] = m(v)
+
+    return x
+
+def combine(xx, yy, zz):
+    coords = []
+    for i,row in enumerate(xx):
+        for j, _ in enumerate(row):
+            x = xx[i][j]
+            y = yy[i][j]
+            z = zz[i][j]
+            coords.append([x, y, z])
+            print('{}, {}, {}'.format(x, y, z))
+
+    return coords
 
 def getData():
+
     return np.array([
         [12.5,70,81.32], [25,70,88.54], [37.5,70,67.58], [50,70,55.32],
         [62.5,70,56.84], [77,70,49.52], [0,11.5,71.32], [77,57.5,67.20],
@@ -58,7 +75,7 @@ def polyfit2d(x, y, z, order=3):
     ij = itertools.product(range(order+1), range(order+1))
     for k, (i,j) in enumerate(ij):
         G[:,k] = x**i * y**j
-    m, _, _, _ = np.linalg.lstsq(G, z)
+    m, _, _, _ = np.linalg.lstsq(G, z, rcond=None)
     return m
 
 def polyval2d(x, y, m):
